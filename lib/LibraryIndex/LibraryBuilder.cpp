@@ -989,13 +989,28 @@ struct KeyLoader {
   bool seriesOrder = false;
 };
 
+// The longest article leadingArticleBytes() recognises ("the ").
+constexpr size_t MAX_ARTICLE_BYTES = 4;
+
+// Title order skips a leading article (see leadingArticleBytes), so segments
+// are read from the fold with that prefix removed. writeTitleOrder() builds
+// the first segment the same way; both must agree or ties refine against
+// misaligned bytes.
 bool loadTitleSegment(void* context, const uint16_t source, const size_t offset, char* segment, size_t& valueBytes) {
   auto& loader = *static_cast<KeyLoader*>(context);
   const uint64_t record = stageOffset(source) + offsetof(StagedEntry, record);
   uint8_t foldLen = 0;
   if (!loader.stage->read(record + offsetof(ClixRecord, foldLen), &foldLen, sizeof(foldLen))) return false;
-  valueBytes = foldLen;
-  return loader.stage->read(record + offsetof(ClixRecord, fold) + offset, segment, SORT_SEGMENT_BYTES);
+  char head[MAX_ARTICLE_BYTES + 1] = {};
+  const size_t headBytes = std::min<size_t>(foldLen, sizeof(head));
+  if (headBytes > 0 && !loader.stage->read(record + offsetof(ClixRecord, fold), head, headBytes)) return false;
+  // One byte past the longest article is enough to see "article + more text".
+  const size_t skip = leadingArticleBytes(std::string_view(head, headBytes));
+  valueBytes = foldLen - skip;
+  memset(segment, 0, SORT_SEGMENT_BYTES);
+  if (offset >= valueBytes) return true;
+  const size_t bytes = std::min(SORT_SEGMENT_BYTES, valueBytes - offset);
+  return loader.stage->read(record + offsetof(ClixRecord, fold) + skip + offset, segment, bytes);
 }
 
 // The shelf is ordered by surname of the canonical spelling, so `source` is
@@ -1646,7 +1661,8 @@ bool writeTitleOrder(const uint16_t n) {
     ClixRecord r{};
     if (!stage.record(s, r)) return false;
     SortEntry entry{};
-    memcpy(entry.key, r.fold, std::min<size_t>(r.foldLen, sizeof(entry.key)));
+    const size_t skip = leadingArticleBytes(std::string_view(r.fold, r.foldLen));
+    memcpy(entry.key, r.fold + skip, std::min<size_t>(r.foldLen - skip, sizeof(entry.key)));
     entry.ordinal = s;
     entry.source = s;
     if (!sorter.add(entry)) return false;

@@ -299,3 +299,29 @@ TEST(LibraryText, FoldIntoReusesStorageAndReplacesPreviousText) {
   library::foldInto("", output);
   EXPECT_TRUE(output.empty());
 }
+
+// Title order skips a leading English article, the way shelves are filed.
+TEST(LeadingArticle, SkipsTheAAn) {
+  EXPECT_EQ(library::leadingArticleBytes(fold("The Power Broker")), 4u);
+  EXPECT_EQ(library::leadingArticleBytes(fold("A Wrinkle in Time")), 2u);
+  EXPECT_EQ(library::leadingArticleBytes(fold("An Unquiet Mind")), 3u);
+}
+
+TEST(LeadingArticle, OnlyWholeLeadingWords) {
+  EXPECT_EQ(library::leadingArticleBytes(fold("Theory of Everything")), 0u);
+  EXPECT_EQ(library::leadingArticleBytes(fold("Anathem")), 0u);
+  EXPECT_EQ(library::leadingArticleBytes(fold("Atonement")), 0u);
+  EXPECT_EQ(library::leadingArticleBytes(fold("Into the Wild")), 0u);
+}
+
+TEST(LeadingArticle, ATitleThatIsOnlyAnArticleStays) {
+  EXPECT_EQ(library::leadingArticleBytes(fold("A")), 0u);
+  EXPECT_EQ(library::leadingArticleBytes(fold("The")), 0u);
+  EXPECT_EQ(library::leadingArticleBytes(""), 0u);
+}
+
+TEST(LeadingArticle, GroupInitialFollowsTheSkippedKey) {
+  const std::string key = fold("The Artist's Way");
+  EXPECT_EQ(library::foldedGroupInitial(std::string_view(key).substr(library::leadingArticleBytes(key))),
+            static_cast<uint32_t>('a'));
+}

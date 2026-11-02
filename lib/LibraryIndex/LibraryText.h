@@ -56,6 +56,13 @@ void foldInto(std::string_view text, std::string& out);
 // number/non-letter. The Library renders 0 as its shared '#' group.
 uint32_t foldedGroupInitial(std::string_view folded);
 
+// Bytes of a leading English article ("the ", "a ", "an ") on an already-folded
+// title, or 0. Title order skips it, so "The Power Broker" files under P, the
+// way libraries and bookstores shelve it. Only the sort skips it: the stored
+// fold keeps the article, so search still matches "the power broker". A title
+// that is only an article ("A") is left alone.
+size_t leadingArticleBytes(std::string_view folded);
+
 // Tidy a person's name for DISPLAY, without reordering it.
 //
 // Drops bracketed spans ("George Sand [Sand, George]"), everything after a

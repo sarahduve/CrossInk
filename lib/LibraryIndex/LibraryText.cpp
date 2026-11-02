@@ -229,6 +229,15 @@ uint32_t foldedGroupInitial(const std::string_view folded) {
   return isUnicodeLetter(cp) ? cp : 0;
 }
 
+size_t leadingArticleBytes(const std::string_view folded) {
+  // The fold lowercases, strips accents, and collapses whitespace to single
+  // spaces, so plain prefix checks are enough.
+  for (const std::string_view article : {std::string_view("the "), std::string_view("an "), std::string_view("a ")}) {
+    if (folded.size() > article.size() && folded.substr(0, article.size()) == article) return article.size();
+  }
+  return 0;
+}
+
 std::string cleanPersonName(const std::string_view author) {
   std::string out;
   out.reserve(author.size());

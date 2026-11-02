@@ -1096,7 +1096,9 @@ uint32_t LibraryActivity::groupForRow(const int row) {
   if (!index.readRecord(ordinalForRow(row), record)) return 0;
   std::string key;
   if (sort == Sort::Title) {
-    key.assign(record.fold, record.foldLen);
+    // Section letters follow the title order, which skips a leading article.
+    const size_t skip = library::leadingArticleBytes(std::string_view(record.fold, record.foldLen));
+    key.assign(record.fold + skip, record.foldLen - skip);
   } else {
     std::string author;
     if (!index.readAuthor(record, author)) return 0;

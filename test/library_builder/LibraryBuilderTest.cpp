@@ -515,7 +515,8 @@ TEST_F(LibraryBuilderTest, InterruptedUpgradeKeepsValidOldLiveIndexOverStaleBack
 }
 
 TEST_F(LibraryBuilderTest, OldFoldVersionRebuildsTitleKeysWithoutReparsingBooks) {
-  bookMetadata["/a.epub"].title = "The Iliad";
+  // No leading article: title order skips one, which would move this title.
+  bookMetadata["/a.epub"].title = "Thucydides";
   bookMetadata["/b.epub"].title = "Rendezvous";
   initial();
   LibraryIndexFile before;
@@ -558,7 +559,7 @@ TEST_F(LibraryBuilderTest, OldFoldVersionRebuildsTitleKeysWithoutReparsingBooks)
   EXPECT_EQ(pathAt(after, SortOrder::TitleAsc, 1), "/a.epub");
   ClixRecord rebuilt{};
   ASSERT_TRUE(recordAtPath(after, "/a.epub", rebuilt));
-  EXPECT_EQ(std::string(rebuilt.fold, rebuilt.foldLen), "the iliad");
+  EXPECT_EQ(std::string(rebuilt.fold, rebuilt.foldLen), "thucydides");
   EXPECT_EQ(foldedGroupInitial(std::string_view(rebuilt.fold, rebuilt.foldLen)), static_cast<uint32_t>('t'));
   EXPECT_EQ(rebuilt.firstSeen, original.firstSeen);
 }
@@ -1555,4 +1556,25 @@ TEST_F(LibraryBuilderTest, CancellingWhileCreatingTheMetadataCacheLeavesNoPartia
   }
   ASSERT_TRUE(buildLibraryIndex("/", stats, true));
   EXPECT_EQ(stats.books, 6);
+}
+
+TEST_F(LibraryBuilderTest, TitleOrderSkipsLeadingArticles) {
+  bookMetadata["/a.epub"].title = "The Power Broker";
+  bookMetadata["/b.epub"].title = "Outline";
+  bookMetadata["/c.epub"].title = "A Wrinkle in Time";
+  bookMetadata["/d.epub"].title = "Theory of Everything";
+  fake::add("/c.epub");
+  fake::add("/d.epub");
+  initial();
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  // outline < power broker < theory of everything < wrinkle in time
+  EXPECT_EQ(pathAt(index, SortOrder::TitleAsc, 0), "/b.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::TitleAsc, 1), "/a.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::TitleAsc, 2), "/d.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::TitleAsc, 3), "/c.epub");
+  // The stored fold keeps the article, so search still sees "the".
+  ClixRecord record{};
+  ASSERT_TRUE(recordAtPath(index, "/a.epub", record));
+  EXPECT_EQ(std::string(record.fold, record.foldLen), "the power broker");
 }

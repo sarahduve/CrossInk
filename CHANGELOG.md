@@ -1,3 +1,9 @@
+## [Unreleased]
+
+### Changed
+
+- Library title sort ignores a leading "The", "A", or "An", so "The Power Broker" is listed under P. Search still matches the full title. The library re-sorts once after updating.
+
 ## [v1.6.1] - 2026-10-03
 
 ### Added

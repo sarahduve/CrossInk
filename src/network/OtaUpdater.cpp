@@ -28,7 +28,8 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback, void*, s
 
 namespace {
 #ifndef CROSSINK_OTA_RELEASE_URL
-#define CROSSINK_OTA_RELEASE_URL "https://api.github.com/repos/uxjulia/CrossInk/releases/latest"
+// Personal X4 build: updates come from this fork's releases (see .github/workflows/x4-release.yml).
+#define CROSSINK_OTA_RELEASE_URL "https://api.github.com/repos/sarahduve/CrossInk/releases/latest"
 #endif
 
 constexpr char latestReleaseUrl[] = CROSSINK_OTA_RELEASE_URL;

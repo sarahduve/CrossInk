@@ -1,0 +1,145 @@
+# Personal X4 build. Rebuilds the x4 branch on top of the latest CrossInk
+# release and publishes it here, where the reader's Check for Updates looks.
+#
+# Versions are <upstream>.<n>: v1.6.1.1, v1.6.1.2, ... then v1.6.2.1 after
+# CrossInk 1.6.2. If the x4 commits no longer apply cleanly, the run fails,
+# GitHub emails the failure, and no release is published.
+#
+# The rebased tree is built but not pushed: the default token can't push
+# commits that touch upstream's workflow files. Bring x4 forward locally with
+# `git rebase <tag>` when convenient.
+name: X4 release
+
+on:
+  schedule:
+    - cron: "17 10 * * *"
+  push:
+    branches: [x4]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: x4-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: x4
+          fetch-depth: 0
+
+      - name: Decide whether to build
+        id: plan
+        run: |
+          set -euo pipefail
+          upstream="$(gh api repos/uxjulia/CrossInk/releases/latest --jq .tag_name)"
+          upstream="${upstream#v}"
+          key="Build key: upstream v${upstream} + x4 $(git rev-parse HEAD)"
+          latest_body="$(gh release view --repo "$GITHUB_REPOSITORY" --json body --jq .body 2>/dev/null || true)"
+          if grep -qF "$key" <<<"$latest_body"; then
+            echo "Already released: $key"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          prefix="v${upstream}."
+          n="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName --jq '.[].tagName' \
+                | awk -v p="$prefix" 'index($0, p) == 1 { s = substr($0, length(p) + 1); if (s ~ /^[0-9]+$/) print s }' \
+                | sort -n | tail -1)"
+          version="${upstream}.$(( ${n:-0} + 1 ))"
+          echo "Building v${version} ($key)"
+          {
+            echo "build=true"
+            echo "upstream=${upstream}"
+            echo "version=${version}"
+            echo "key=${key}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Rebase x4 onto the CrossInk release
+        if: steps.plan.outputs.build == 'true'
+        env:
+          UPSTREAM: ${{ steps.plan.outputs.upstream }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Both sides add to the Unreleased section; keep both.
+          echo "CHANGELOG.md merge=union" >> .git/info/attributes
+          git remote add upstream https://github.com/uxjulia/CrossInk.git
+          git fetch --no-tags upstream "refs/tags/v${UPSTREAM}:refs/tags/v${UPSTREAM}"
+          if git merge-base --is-ancestor "v${UPSTREAM}" HEAD; then
+            echo "x4 already includes v${UPSTREAM}"
+          else
+            git rebase "v${UPSTREAM}"
+          fi
+          git log --oneline "v${UPSTREAM}..HEAD"
+          git submodule update --init --recursive
+
+      - uses: actions/setup-python@v6
+        if: steps.plan.outputs.build == 'true'
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        if: steps.plan.outputs.build == 'true'
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Cache PlatformIO packages
+        if: steps.plan.outputs.build == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-platformio-py3.14-core6.1.19-x4-${{ hashFiles('platformio.ini', 'platformio.local.example.ini') }}
+
+      - name: Install PlatformIO Core
+        if: steps.plan.outputs.build == 'true'
+        run: |
+          set -euo pipefail
+          uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
+          pio pkg install -e default
+          uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
+
+      - name: Run native tests
+        if: steps.plan.outputs.build == 'true'
+        run: |
+          set -euo pipefail
+          cmake -S test -B build-test
+          cmake --build build-test -j"$(nproc)"
+          ctest --test-dir build-test --output-on-failure -j"$(nproc)"
+
+      - name: Build firmware
+        if: steps.plan.outputs.build == 'true'
+        env:
+          CROSSINK_RELEASE_VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          sed -i "/^\[crossink\]$/,/^\[/s/^version = .*/version = ${CROSSINK_RELEASE_VERSION}/" platformio.ini
+          pio run -j1 -e default
+          ls -l .pio/build/default/*.bin
+
+      - name: Publish release
+        if: steps.plan.outputs.build == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          UPSTREAM: ${{ steps.plan.outputs.upstream }}
+          KEY: ${{ steps.plan.outputs.key }}
+        run: |
+          set -euo pipefail
+          asset=".pio/build/default/firmware-x3-x4-v${VERSION}.bin"
+          test -f "$asset"
+          notes="$(printf 'CrossInk v%s plus the x4 branch:\n\n%s\n\n%s\n' \
+            "$UPSTREAM" "$(git log --format='- %s' "v${UPSTREAM}..HEAD")" "$KEY")"
+          gh release create "v${VERSION}" "$asset" \
+            --repo "$GITHUB_REPOSITORY" --target x4 --latest \
+            --title "v${VERSION} (personal X4 build)" --notes "$notes"

@@ -16,6 +16,8 @@ RequestUpdateResult Activity::requestUpdateAndWait() { return activityManager.re
 
 void Activity::onGoHome(HomeMenuItem item) { activityManager.goHome(item); }
 
+void Activity::onGoBackFromReader() { activityManager.goBackFromReader(); }
+
 void Activity::onSelectBook(const std::string& path) { activityManager.goToReader(path); }
 
 void Activity::startActivityForResult(std::unique_ptr<Activity>&& activity, ActivityResultHandler resultHandler) {

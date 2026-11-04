@@ -22,6 +22,8 @@ class LibraryActivity final : public Activity {
   void loop() override;
   void render(RenderLock&&) override;
   bool blocksGlobalInput() const override { return actionPopup.isActive(); }
+  // On the next visit, select this book's row again if it is still where it was.
+  static void returnToBook(const std::string& path);
 
 #ifdef SIMULATOR
   size_t simulatorPendingInputs() const { return pendingInput.size(); }
@@ -127,6 +129,7 @@ class LibraryActivity final : public Activity {
   uint16_t ordinalForRow(int row);
   uint16_t filteredSourceRow(uint16_t row) const;
   bool readBook(int row, RecentBook& book, bool fullPath = true);
+  void restoreReturnSpot();
   uint32_t groupForRow(int row);
   uint16_t dateGroupForRow(int row);
   bool metadataGroupForRow(int row, std::string& out);

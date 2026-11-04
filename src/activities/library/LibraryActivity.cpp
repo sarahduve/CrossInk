@@ -80,7 +80,19 @@ int headerControlRightInset() {
   // Inline battery themes need a separate lane for the options button.
   return metrics.headerBatteryDetached || metrics.headerBatterySide == 1 ? 10 : metrics.batteryWidth + 80;
 }
+// Where the last opened book sat in the list, so Back from the reader lands on it.
+struct ReturnSpot {
+  std::string path;
+  int row = -1;
+  int top = 0;
+  bool pending = false;
+};
+ReturnSpot returnSpot;
 }  // namespace
+
+void LibraryActivity::returnToBook(const std::string& path) {
+  returnSpot.pending = !path.empty() && path == returnSpot.path && returnSpot.row >= 0;
+}
 
 LibraryActivity::LibraryActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
     : Activity("Library", renderer, mappedInput),
@@ -130,6 +142,7 @@ void LibraryActivity::onEnter() {
     refreshIndexIfNeeded();
     initialScanPending = false;
     resetViewport();
+    restoreReturnSpot();
     ignoreConfirmRelease = mappedInput.isPressed(MappedInputManager::Button::Confirm);
     requestUpdate();
   }
@@ -559,6 +572,23 @@ void LibraryActivity::resetViewport() {
   loadGridProgress();
 }
 
+void LibraryActivity::restoreReturnSpot() {
+  if (!returnSpot.pending) return;
+  returnSpot.pending = false;
+  RecentBook book;
+  // Rows shift when the sort or filter changes (Recently Read moves the book
+  // to the top), so only reuse the row if the same book is still on it.
+  if (returnSpot.row >= rowCount() || !readBook(returnSpot.row, book) || book.path != returnSpot.path) return;
+  selection = CONTROL_COUNT + returnSpot.row;
+  listNav.selected = returnSpot.row;
+  listNav.top = returnSpot.top;
+  listNav.follow(rowCount());
+  topIndex = listNav.top;
+  gridPageStart = (returnSpot.row / GRID_PAGE_SIZE) * GRID_PAGE_SIZE;
+  loadedGridPageStart = -1;
+  loadGridProgress();
+}
+
 void LibraryActivity::reloadAfterBookAction() {
   refreshIndexIfNeeded(true);
   selection = std::min(selection, std::max(CONTROL_COUNT, CONTROL_COUNT + rowCount() - 1));
@@ -595,6 +625,7 @@ void LibraryActivity::openDialog(std::unique_ptr<Activity>&& child, ActivityResu
 void LibraryActivity::openBook(const int row) {
   RecentBook book;
   if (!readBook(row, book)) return;
+  returnSpot = {book.path, row, topIndex, false};
   app.clearTapFlash();
   index.close();
   onSelectBook(book.path);

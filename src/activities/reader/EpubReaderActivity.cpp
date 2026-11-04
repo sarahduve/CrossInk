@@ -2860,7 +2860,7 @@ void EpubReaderActivity::loop() {
   if (goHomeAfterBuildCancel.load(std::memory_order_relaxed) && !RenderLock::peek()) {
     goHomeAfterBuildCancel.store(false, std::memory_order_relaxed);
     sectionBuildCancelRequested.store(false, std::memory_order_relaxed);
-    onGoHome();
+    onGoBackFromReader();
     return;
   }
 
@@ -3167,14 +3167,14 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  // Short press BACK goes directly to home (or restores position if viewing footnote)
+  // Short press BACK returns to where the book was opened from (or restores position if viewing footnote)
   if (!touch.prev && !touch.next && mappedInput.wasReleased(MappedInputManager::Button::Back) &&
       mappedInput.getHeldTime() < ReaderUtils::GO_HOME_MS) {
     if (footnoteDepth > 0) {
       restoreSavedPosition();
       return;
     }
-    onGoHome();
+    onGoBackFromReader();
     return;
   }
 

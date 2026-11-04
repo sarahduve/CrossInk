@@ -97,6 +97,10 @@ class ActivityManager {
   std::string preferredHomeBookPath;
   bool returningHomeThroughSettings = false;
 
+  // The list the open book was picked from ("Library" or "FileBrowser"), so a
+  // short Back in the reader can return there. Empty means Home.
+  std::string readerOrigin;
+
   // Task to render and display the activity
   TaskHandle_t renderTaskHandle = nullptr;
   static void renderTaskTrampoline(void* param);
@@ -163,6 +167,8 @@ class ActivityManager {
   void goToCrashReport();
   void goHome(HomeMenuItem initialMenuItem = HomeMenuItem::NONE,
               HalDisplay::RefreshMode initialRefreshMode = HalDisplay::FAST_REFRESH);
+  // Leave the reader for the Library or folder the book was opened from, or Home.
+  void goBackFromReader();
 
   // This will move current activity to stack instead of deleting it
   void pushActivity(std::unique_ptr<Activity>&& activity);

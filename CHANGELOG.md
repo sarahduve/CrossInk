@@ -3,6 +3,7 @@
 ### Changed
 
 - Library title sort ignores a leading "The", "A", or "An", so "The Power Broker" is listed under P. Search still matches the full title. The library re-sorts once after updating.
+- A short press of Back while reading returns to where the book was opened: the Library (on the same book when it is still in place) or the book's folder in the File Browser. Books opened from Home still return Home.
 
 ## [v1.6.1] - 2026-10-03
 

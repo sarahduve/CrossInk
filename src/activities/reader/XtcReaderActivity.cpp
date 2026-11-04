@@ -331,10 +331,10 @@ void XtcReaderActivity::loop() {
     return;
   }
 
-  // Short press BACK goes directly to home
+  // Short press BACK returns to where the book was opened from
   if (!touch.prev && !touch.next && mappedInput.wasReleased(MappedInputManager::Button::Back) &&
       mappedInput.getHeldTime() < ReaderUtils::GO_HOME_MS) {
-    onGoHome();
+    onGoBackFromReader();
     return;
   }
 

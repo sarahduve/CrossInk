@@ -1006,6 +1006,16 @@ void ActivityManager::goToReader(std::string path, const bool suppressBackReleas
   // OPDS credentials are unrelated to local reading and may contain several
   // heap-backed strings. Home reloads them lazily when it becomes active.
   OPDS_STORE.release();
+  // Remember which list opened the book. Other screens (sleep, settings,
+  // file transfer) reopen the reader without changing where Back leads.
+  if (currentActivity) {
+    const auto& from = currentActivity->name;
+    if (from == "Library" || from == "FileBrowser") {
+      readerOrigin = from;
+    } else if (from == "Home" || from == "SavedItemsHome") {
+      readerOrigin.clear();
+    }
+  }
   replaceActivity(std::make_unique<ReaderActivity>(renderer, mappedInput, std::move(path), suppressBackRelease,
                                                    allowFastInitialRefresh, cleanImageBaseOnEntry));
 }
@@ -1049,6 +1059,18 @@ void ActivityManager::goToBoot() { replaceActivity(std::make_unique<BootActivity
 
 void ActivityManager::goToFullScreenMessage(std::string message, EpdFontFamily::Style style) {
   replaceActivity(std::make_unique<FullScreenMessageActivity>(renderer, mappedInput, std::move(message), style));
+}
+
+void ActivityManager::goBackFromReader() {
+  const std::string bookPath = currentActivity ? currentActivity->getCurrentBookPath() : std::string{};
+  if (readerOrigin == "Library") {
+    LibraryActivity::returnToBook(bookPath);
+    goToLibrary();
+  } else if (readerOrigin == "FileBrowser" && !bookPath.empty()) {
+    goToFileBrowser(bookPath);  // opens the book's folder with the book selected
+  } else {
+    goHome();
+  }
 }
 
 void ActivityManager::goHome(HomeMenuItem initialMenuItem, const HalDisplay::RefreshMode initialRefreshMode) {

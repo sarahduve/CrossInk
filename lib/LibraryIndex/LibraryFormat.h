@@ -36,7 +36,7 @@ inline constexpr uint32_t CLIX_UNKNOWN_SERIES_POSITION = 0xFFFFFFFFu;
 // Forces fold and ranks to be rebuilt while firstSeen values are preserved, so
 // arrival history survives.
 // 4: title order skips a leading article ("the", "a", "an").
-inline constexpr uint8_t CLIX_FOLD_VERSION = 4;
+inline constexpr uint8_t CLIX_FOLD_VERSION = 5;
 
 inline constexpr uint32_t CLIX_ALIGN = 512;
 inline constexpr size_t CLIX_FOLD_BYTES = 96;

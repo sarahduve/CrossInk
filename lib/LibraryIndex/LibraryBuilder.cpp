@@ -1035,12 +1035,14 @@ bool loadFirstNameSegment(void* context, const uint16_t source, const size_t off
 }
 
 // Series and genre: the folded name, and for series a NUL then the big-endian
-// position, so books sort by name, then number, then title order.
+// position, so books sort by name, then number, then title order. Genre skips
+// a leading article like title order, so "The New Yorker" sorts under N.
 bool loadMetadataSegment(void* context, const uint16_t source, const size_t offset, char* segment, size_t& valueBytes) {
   auto& loader = *static_cast<KeyLoader*>(context);
   if (!loader.stage->text(source, loader.lengthOffset, loader.textOffset, STAGE_METADATA_BYTES, loader.text))
     return false;
   foldInto(loader.text, loader.key);
+  if (!loader.seriesOrder) loader.key.erase(0, leadingArticleBytes(loader.key));
   if (!loader.key.empty() && loader.seriesOrder) {
     uint32_t position = CLIX_UNKNOWN_SERIES_POSITION;
     if (!loader.stage->read(stageOffset(source) + offsetof(StagedEntry, seriesPosition), &position, sizeof(position)))

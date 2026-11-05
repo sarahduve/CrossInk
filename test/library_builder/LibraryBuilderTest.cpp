@@ -1578,3 +1578,26 @@ TEST_F(LibraryBuilderTest, TitleOrderSkipsLeadingArticles) {
   ASSERT_TRUE(recordAtPath(index, "/a.epub", record));
   EXPECT_EQ(std::string(record.fold, record.foldLen), "the power broker");
 }
+
+TEST_F(LibraryBuilderTest, GenreOrderSkipsLeadingArticles) {
+  bookMetadata["/a.epub"].genre = "The New Yorker";
+  bookMetadata["/b.epub"].genre = "Vox";
+  bookMetadata["/c.epub"].genre = "The Atlantic";
+  bookMetadata["/d.epub"].genre = "Theory";
+  fake::add("/c.epub");
+  fake::add("/d.epub");
+  initial();
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  // atlantic < new yorker < theory < vox
+  EXPECT_EQ(pathAt(index, SortOrder::GenreAsc, 0), "/c.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::GenreAsc, 1), "/a.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::GenreAsc, 2), "/d.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::GenreAsc, 3), "/b.epub");
+  // The displayed genre keeps its article.
+  ClixRecord record{};
+  ASSERT_TRUE(recordAtPath(index, "/a.epub", record));
+  std::string genre;
+  ASSERT_TRUE(index.readGenre(record, genre));
+  EXPECT_EQ(genre, "The New Yorker");
+}

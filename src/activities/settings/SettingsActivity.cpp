@@ -3,6 +3,7 @@
 #include <BoardConfig.h>
 #include <GfxRenderer.h>
 #include <HalGPIO.h>
+#include <HalStorage.h>
 #include <I18n.h>
 #include <Logging.h>
 #include <WiFi.h>
@@ -124,6 +125,20 @@ void drawCenteredTextLine(const GfxRenderer& renderer, const int pageWidth, cons
   renderer.drawText(SMALL_FONT_ID, labelX, y, text.c_str());
 }
 
+// "SD card: 12.3 GB free of 29.7 GB". The used-bytes count is cached by the SD
+// driver, so this is cheap to call on every render. Skipped if the card can't
+// report its size.
+void drawSdSpaceLine(const GfxRenderer& renderer, const int pageWidth, const int y) {
+  const uint64_t total = Storage.totalBytes();
+  if (total == 0) return;
+  const uint64_t used = Storage.usedBytes();
+  const uint64_t freeBytes = total > used ? total - used : 0;
+  constexpr double GB = 1000.0 * 1000.0 * 1000.0;
+  char buf[64];
+  snprintf(buf, sizeof(buf), "%s: %.1f GB free of %.1f GB", tr(STR_SD_CARD), freeBytes / GB, total / GB);
+  drawCenteredTextLine(renderer, pageWidth, y, buf);
+}
+
 bool isVersionBreakChar(const char c) { return c == ' ' || c == '-' || c == '+' || c == '.' || c == '_'; }
 
 std::string formatUtcOffset(uint8_t biasedQ) {
@@ -155,8 +170,10 @@ void drawSystemVersionFooter(const GfxRenderer& renderer, const int pageWidth, c
   const int maxWidth = pageWidth - systemVersionFooterSideMargin * 2;
   const int bottomLineY =
       pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing - systemVersionFooterBottomInset;
+  const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
 
   if (renderer.getTextWidth(SMALL_FONT_ID, label.c_str()) <= maxWidth) {
+    drawSdSpaceLine(renderer, pageWidth, bottomLineY - lineHeight);
     drawCenteredTextLine(renderer, pageWidth, bottomLineY, label);
     return;
   }
@@ -183,7 +200,7 @@ void drawSystemVersionFooter(const GfxRenderer& renderer, const int pageWidth, c
   const std::string secondLine = lineBreak == std::string::npos
                                      ? ""
                                      : renderer.truncatedText(SMALL_FONT_ID, label.substr(lineBreak).c_str(), maxWidth);
-  const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
+  drawSdSpaceLine(renderer, pageWidth, bottomLineY - lineHeight * 2);
   drawCenteredTextLine(renderer, pageWidth, bottomLineY - lineHeight, firstLine);
   drawCenteredTextLine(renderer, pageWidth, bottomLineY, secondLine);
 }

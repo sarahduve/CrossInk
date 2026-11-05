@@ -5,6 +5,7 @@
 - Library title sort ignores a leading "The", "A", or "An", so "The Power Broker" is listed under P. Search still matches the full title. The library re-sorts once after updating.
 - Library genre sort also ignores a leading "The", "A", or "An", so "The New Yorker" is grouped under N.
 - A short press of Back while reading returns to where the book was opened: the Library (on the same book when it is still in place) or the book's folder in the File Browser. Books opened from Home still return Home.
+- Settings → System shows the SD card's free space above the version number.
 - Personal build: Check for Updates installs releases from github.com/sarahduve/CrossInk, which a workflow rebuilds when CrossInk publishes a release.
 
 ## [v1.6.1] - 2026-10-03

@@ -8,6 +8,10 @@
 - Settings → System shows the SD card's free space above the version number.
 - Personal build: Check for Updates installs releases from github.com/sarahduve/CrossInk, which a workflow rebuilds when CrossInk publishes a release.
 
+### Fixed
+
+- Turning a page while a chapter is still loading (or after it failed to load) no longer crashes the reader.
+
 ## [v1.6.1] - 2026-10-03
 
 ### Added

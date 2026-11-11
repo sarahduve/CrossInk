@@ -5927,6 +5927,13 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn, const char* source) {
     requestUpdate();
     return;
   }
+  // No section loaded yet: the previous turn just moved to another chapter, or
+  // the current one failed to lay out. Let render() load it rather than turning
+  // a page that doesn't exist (a null dereference before this check).
+  if (!section) {
+    requestUpdate();
+    return;
+  }
   if (isForwardTurn) {
     uint32_t forwardReadSeconds = 0;
     const bool shouldRecordForwardRead = forwardPageReadElapsed(forwardReadSeconds, source);
